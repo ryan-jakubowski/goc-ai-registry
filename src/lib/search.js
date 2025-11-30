@@ -68,7 +68,7 @@ export async function semanticSearch(query, data) {
         // Calculate scores with hybrid approach
         const results = data.map(item => {
             // If item has no embedding, return very low score
-            if (!item.embedding) return { ...item, score: -1 };
+            if (!item.embedding) return { ...item, score: -1, semanticScore: 0, keywordBonus: 0 };
 
             // 1. Calculate semantic similarity score (0 to 1)
             const semanticScore = cosineSimilarity(queryEmbedding, item.embedding);
@@ -104,24 +104,26 @@ export async function semanticSearch(query, data) {
             // 3. Combine scores (semantic similarity + keyword bonus)
             const finalScore = semanticScore + keywordBonus;
 
-            return { ...item, score: finalScore };
+            return { ...item, score: finalScore, semanticScore, keywordBonus };
         });
 
         // Sort by score descending
         results.sort((a, b) => b.score - a.score);
 
-        // Filter by relevance threshold instead of fixed count
-        // Keep results with score > 0.3 OR top 5 results (whichever is more)
-        const threshold = 0.3;
-        const minResults = 5;
+        // Filter by stricter relevance criteria
+        // Show results only if they meet ANY of these conditions:
+        // 1. Has keyword match (keyword bonus > 0) AND combined score > 0.5
+        // 2. Very high semantic similarity alone (> 0.6) for synonym/concept matches
+        const relevantResults = results.filter(r => {
+            const hasKeywordMatch = r.keywordBonus > 0;
+            const highSemanticScore = r.semanticScore > 0.6;
+            const combinedRelevance = hasKeywordMatch && r.score > 0.5;
 
-        const relevantResults = results.filter(r => r.score > threshold);
+            return combinedRelevance || highSemanticScore;
+        });
 
-        if (relevantResults.length < minResults) {
-            // Return at least the top 5 results
-            return results.slice(0, Math.min(minResults, results.length));
-        }
-
+        // Return only relevant results - no minimum requirement
+        // Better to show 0 results than irrelevant ones
         return relevantResults;
     } catch (error) {
         console.error("Search error:", error);
