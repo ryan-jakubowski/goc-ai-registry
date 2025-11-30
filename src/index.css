@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-copper-roof: #3A7D68;
+  --color-copper-roof-light: #5C9E89;
+  --color-copper-roof-dark: #2A5C4C;
+}
+
+body {
+  @apply bg-white text-gray-900;
+}
+
+/* Custom scrollbar for table if needed */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
