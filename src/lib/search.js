@@ -47,7 +47,7 @@ function cosineSimilarity(a, b) {
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-export async function semanticSearch(query, data, topK = 20) {
+export async function semanticSearch(query, data) {
     if (!query || !query.trim()) return data;
 
     try {
@@ -61,21 +61,68 @@ export async function semanticSearch(query, data, topK = 20) {
         const output = await pipe(query, { pooling: 'mean', normalize: true });
         const queryEmbedding = Array.from(output.data);
 
-        // Calculate scores
+        // Prepare for keyword matching
+        const queryLower = query.toLowerCase();
+        const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 2);
+
+        // Calculate scores with hybrid approach
         const results = data.map(item => {
-            // If item has no embedding, return -1 score
+            // If item has no embedding, return very low score
             if (!item.embedding) return { ...item, score: -1 };
 
-            const score = cosineSimilarity(queryEmbedding, item.embedding);
-            return { ...item, score };
+            // 1. Calculate semantic similarity score (0 to 1)
+            const semanticScore = cosineSimilarity(queryEmbedding, item.embedding);
+
+            // 2. Calculate keyword match bonus
+            let keywordBonus = 0;
+            const searchableText = [
+                item.name || '',
+                item.description || '',
+                item.capabilities || '',
+                item.users || '',
+                item.vendor || '',
+                item.developed_by || '',
+                item.department || '',
+                item.results || ''
+            ].join(' ').toLowerCase();
+
+            // Exact phrase match gets highest bonus
+            if (searchableText.includes(queryLower)) {
+                keywordBonus += 0.5;
+            }
+
+            // Individual term matches
+            queryTerms.forEach(term => {
+                if (searchableText.includes(term)) {
+                    keywordBonus += 0.1;
+                }
+            });
+
+            // Cap keyword bonus at 0.7
+            keywordBonus = Math.min(keywordBonus, 0.7);
+
+            // 3. Combine scores (semantic similarity + keyword bonus)
+            const finalScore = semanticScore + keywordBonus;
+
+            return { ...item, score: finalScore };
         });
 
         // Sort by score descending
         results.sort((a, b) => b.score - a.score);
 
-        // Return top K, but filter out very low scores if needed
-        // For now, just return top K
-        return results.slice(0, topK);
+        // Filter by relevance threshold instead of fixed count
+        // Keep results with score > 0.3 OR top 5 results (whichever is more)
+        const threshold = 0.3;
+        const minResults = 5;
+
+        const relevantResults = results.filter(r => r.score > threshold);
+
+        if (relevantResults.length < minResults) {
+            // Return at least the top 5 results
+            return results.slice(0, Math.min(minResults, results.length));
+        }
+
+        return relevantResults;
     } catch (error) {
         console.error("Search error:", error);
         // Fallback to basic text search if semantic search fails
