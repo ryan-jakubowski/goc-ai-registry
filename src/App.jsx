@@ -586,7 +586,7 @@ function App() {
             <footer className="bg-white border-t border-gray-200 mt-auto">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">
                     <p className="text-sm text-gray-500 mb-2">
-                        {new Date().toLocaleDateString(lang === 'en' ? 'en-CA' : 'fr-CA', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        {lang === 'en' ? 'Last updated: November 30, 2025' : 'Dernière mise à jour : 30 novembre 2025'}
                     </p>
                     <p className="text-xs text-gray-500 mb-2">
                         {lang === 'en'
